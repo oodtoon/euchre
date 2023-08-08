@@ -5,15 +5,59 @@
   let passCount: number = 0;
   let trump: string = "";
 
+  $: trumpIndex = suites.indexOf(trump);
+
+  $: leftBower = trump ? suites[(trumpIndex + 2) % suites.length] : "";
+  let suiteToFolllow: string = "";
+
   $: if (passCount > 4) {
     passCount = 0;
   }
 
+  interface Card {
+    type: string;
+    suite: string;
+    value: number;
+  }
+
+  let cardsValues: {
+    9: number;
+    10: number;
+    J: number;
+    Q: number;
+    K: number;
+    A: number;
+  };
+
+  cardsValues = {
+    9: 9,
+    10: 10,
+    J: 11,
+    Q: 12,
+    K: 13,
+    A: 14,
+  };
+
+  const getCardVal = (cardType: string, suite: string) => {
+    if (cardType === "J") {
+      if (suite === trump) {
+        return 16;
+      } else if (suite === leftBower) {
+        return 15;
+      } else {
+        return 11;
+      }
+    }
+    return cardsValues[cardType as keyof typeof cardsValues];
+  };
+
   const createDeck = (suites: string[], vals: string[]) => {
     return suites.flatMap((suite) => {
-      const suiteVal: string[] = [];
+      const suiteVal: Card[] = [];
       vals.forEach((val) => {
-        suiteVal.push(val + suite);
+        let cardObj = { type: val, suite, value: getCardVal(val, suite) };
+
+        suiteVal.push(cardObj);
       });
       return suiteVal;
     });
@@ -22,31 +66,63 @@
   let fullDeck = createDeck(suites, cardVals);
 
   let players: [string[], string[], string[], string[]] = [[], [], [], []];
-  let shuffledDeck: string[];
-  let playedCards = ["", "", "", ""];
+  let shuffledDeck: Card[];
+  let playedCards: Card[] = [
+    { type: "", suite: "", value: 0 },
+    { type: "", suite: "", value: 0 },
+    { type: "", suite: "", value: 0 },
+    { type: "", suite: "", value: 0 },
+  ];
 
-  const shuffleDeck = (deck: string[]) => {
+  $: if (shuffledDeck) {
+    if (shuffledDeck.length < 24) {
+      shuffledDeck = [...shuffledDeck, ...fullDeck];
+    }
+
+    shuffledDeck.forEach((card) => {
+      if (card.type !== "J") {
+        return;
+      }
+
+      if (card.suite === trump) {
+        card.value = 16;
+      } else if (card.suite === leftBower) {
+        card.value = 15;
+      }
+    });
+    shuffledDeck = shuffledDeck;
+  }
+
+  const shuffleDeck = (deck: Card[]) => {
     if (deck.length < 5) {
       return;
     }
     const randomIndex = Math.floor(Math.random() * (deck.length - 1));
     const randomCard = deck.splice(randomIndex, 1)[0];
+
     shuffledDeck.push(randomCard);
     shuffleDeck(deck);
   };
 
-  const dealCards = (deck: string[]) => {
+  const dealCards = (deck: Card[]) => {
     for (let i = 0; i < deck.length; i++) {
       const index = i % 4;
-      players[index].push(deck[i]);
+      const newCard = deck[i].type + deck[i].suite;
+      players[index].push(newCard);
     }
   };
 
   const reset = () => {
+    trump = "";
     fullDeck = createDeck(suites, cardVals);
     players = [[], [], [], []];
     shuffledDeck = [];
-    playedCards = ["", "", "", ""];
+    playedCards = [
+      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0 },
+    ];
   };
 
   const handleShuffle = () => {
@@ -57,22 +133,42 @@
 
   const handlePass = () => {
     passCount++;
-    console.log("pass");
   };
 
   const handlePickUp = () => {
-    const trumpSuite = fullDeck[0].slice(-1);
+    const trumpSuite = fullDeck[0].suite;
     trump = trumpSuite;
   };
 
   const handleCardClick = (event: MouseEvent) => {
     const index = event.target!.value;
 
-    if (playedCards[index] === "") {
-      // getCardVal(event.target!.textContent)
+    if (playedCards[index].type === "") {
       event.target!.remove()!;
-      playedCards.splice(index, 1, event.target!.textContent);
+      const matchingCard = shuffledDeck.find(
+        (card) => card.type + card.suite === event.target!.textContent
+      );
+
+      if (suiteToFolllow !== "") {
+        if (
+          matchingCard?.suite !== trump &&
+          matchingCard?.suite !== leftBower &&
+          matchingCard?.suite !== suiteToFolllow
+        ) {
+          matchingCard!.value = 0;
+        }
+      }
+
+      if (matchingCard?.suite === trump || matchingCard?.suite === leftBower) {
+        matchingCard.value = matchingCard.value * 2;
+      }
+
+      playedCards.splice(index, 1, matchingCard!);
       playedCards = [...playedCards];
+    }
+
+    if (suiteToFolllow === "") {
+      suiteToFolllow = playedCards[index].suite;
     }
   };
 
@@ -81,22 +177,10 @@
     getHighestCard(playedCards);
   };
 
-  const getCardVal = (card: string) => {
-    let val: string;
-    if (card.length > 2) {
-      val = card[0] + card[1];
-    } else {
-      val = card[0];
-    }
-    console.log(val);
-  };
-
-  const getHighestCard = (cards: string[]) => {
-    if (cards.includes("A")) {
-      console.log("A");
-    } else if (cards.includes("K")) {
-      console.log("K");
-    }
+  const getHighestCard = (cards: Card[]) => {
+    const highestCard = cards.find(card => card.value === Math.max(...cards.map((c) => c.value)))
+    console.log(highestCard)
+    console.log(playedCards)
   };
 </script>
 
@@ -131,12 +215,12 @@
   <div class="played-card-container">
     {#if playedCards.length < 5}
       {#each playedCards as card, i}
-        {#if card !== ""}
+        {#if card.type !== ""}
           <div
             class={`c${i + 1}`}
-            class:red={card.slice(-1) === "♥" || card.slice(-1) === "♦"}
+            class:red={card.suite === "♥" || card.suite === "♦"}
           >
-            {card}
+            {card.type + card.suite}
           </div>
         {/if}
       {/each}
@@ -148,11 +232,17 @@
   <div>Kitty</div>
 {:else}
   <div>Trump: {trump}</div>
-  <div>Kitty {fullDeck[0]}</div>
+  <div>Kitty {fullDeck[0].type + fullDeck[0].suite}</div>
   <div>Pass count: {passCount}</div>
   <button on:click={handlePass}>Pass</button>
   <button on:click={handlePickUp}>Pick It Up</button>
   <div><button on:click={handleNext}>Next Hand</button></div>
+  <div>
+    Left Bower:
+    {#if leftBower}
+      <span>J{leftBower}</span>
+    {/if}
+  </div>
 {/if}
 
 <style>
