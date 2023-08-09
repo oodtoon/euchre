@@ -3,15 +3,33 @@
   const suites = ["♠", "♦", "♣", "♥"];
 
   let passCount: number = 0;
+
+  let dealerIndex: number = 0;
+  let playerTurn: number = 1
+  let cardsPlayed: number = 0
+
+  let redTricks: number = 0;
+  let blackTricks: number = 0;
+
   let trump: string = "";
 
   $: trumpIndex = suites.indexOf(trump);
 
-  $: leftBower = trump ? suites[(trumpIndex + 2) % suites.length] : "";
+  $: leftBowerSuite = trump ? suites[(trumpIndex + 2) % suites.length] : "";
+
+  $: leftBower = leftBowerSuite ? "J" + leftBowerSuite : "";
   let suiteToFolllow: string = "";
 
   $: if (passCount > 4) {
     passCount = 0;
+  }
+
+  $: if (redTricks + blackTricks === 5) {
+    if (dealerIndex < 4) {
+      dealerIndex++;
+    } else {
+      dealerIndex = 0;
+    }
   }
 
   interface Card {
@@ -42,7 +60,7 @@
     if (cardType === "J") {
       if (suite === trump) {
         return 16;
-      } else if (suite === leftBower) {
+      } else if (suite === leftBowerSuite) {
         return 15;
       } else {
         return 11;
@@ -65,7 +83,7 @@
 
   let fullDeck = createDeck(suites, cardVals);
 
-  let players: [string[], string[], string[], string[]] = [[], [], [], []];
+  let playersHands: [Card[], Card[], Card[], Card[]] = [[], [], [], []];
   let shuffledDeck: Card[];
   let playedCards: Card[] = [
     { type: "", suite: "", value: 0 },
@@ -86,7 +104,7 @@
 
       if (card.suite === trump) {
         card.value = 16;
-      } else if (card.suite === leftBower) {
+      } else if (card.suite === leftBowerSuite) {
         card.value = 15;
       }
     });
@@ -94,6 +112,7 @@
   }
 
   const shuffleDeck = (deck: Card[]) => {
+    console.log(playersHands);
     if (deck.length < 5) {
       return;
     }
@@ -107,15 +126,14 @@
   const dealCards = (deck: Card[]) => {
     for (let i = 0; i < deck.length; i++) {
       const index = i % 4;
-      const newCard = deck[i].type + deck[i].suite;
-      players[index].push(newCard);
+      playersHands[index].push(deck[i]);
     }
   };
 
   const reset = () => {
     trump = "";
     fullDeck = createDeck(suites, cardVals);
-    players = [[], [], [], []];
+    playersHands = [[], [], [], []];
     shuffledDeck = [];
     playedCards = [
       { type: "", suite: "", value: 0 },
@@ -141,25 +159,45 @@
   };
 
   const handleCardClick = (event: MouseEvent) => {
+    if (trump === "") {
+      return;
+    }
+
     const index = event.target!.value;
 
+    if (index !== playerTurn) {
+      return
+    }
+
     if (playedCards[index].type === "") {
-      event.target!.remove()!;
       const matchingCard = shuffledDeck.find(
         (card) => card.type + card.suite === event.target!.textContent
       );
 
+      const playedCardIndex = playersHands[index].indexOf(matchingCard!);
+      playersHands[index].splice(playedCardIndex, 1);
+
       if (suiteToFolllow !== "") {
+        const hasLeadingSuite = playersHands[index].some(
+          (card) => card.suite === suiteToFolllow
+        );
+        if (matchingCard?.suite !== suiteToFolllow && hasLeadingSuite) {
+          return;
+        }
+
         if (
           matchingCard?.suite !== trump &&
-          matchingCard?.suite !== leftBower &&
+          matchingCard?.type! + matchingCard?.suite! !== leftBower &&
           matchingCard?.suite !== suiteToFolllow
         ) {
           matchingCard!.value = 0;
         }
       }
 
-      if (matchingCard?.suite === trump || matchingCard?.suite === leftBower) {
+      if (
+        matchingCard?.suite === trump ||
+        (matchingCard?.suite === leftBowerSuite && matchingCard.type === "J")
+      ) {
         matchingCard.value = matchingCard.value * 2;
       }
 
@@ -168,19 +206,41 @@
     }
 
     if (suiteToFolllow === "") {
-      suiteToFolllow = playedCards[index].suite;
+      if (
+        playedCards[index].suite === leftBowerSuite &&
+        playedCards[index].type === "J"
+      ) {
+        suiteToFolllow = trump;
+      } else {
+        suiteToFolllow = playedCards[index].suite;
+      }
     }
+
+    playerTurn++
   };
 
   const handleNext = () => {
     console.log("nextHand");
     getHighestCard(playedCards);
+    suiteToFolllow = "";
+    playedCards = [
+      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0 },
+    ];
   };
 
   const getHighestCard = (cards: Card[]) => {
-    const highestCard = cards.find(card => card.value === Math.max(...cards.map((c) => c.value)))
-    console.log(highestCard)
-    console.log(playedCards)
+    const highestCard = cards.find(
+      (card) => card.value === Math.max(...cards.map((c) => c.value))
+    );
+    const winningIndex = playedCards.indexOf(highestCard!);
+    if (winningIndex === 1 || winningIndex === 3) {
+      redTricks++;
+    } else {
+      blackTricks++;
+    }
   };
 </script>
 
@@ -188,23 +248,32 @@
 <button on:click={reset}>Reset</button>
 
 <div class="player-container">
-  {#each players as player, i}
+  {#each playersHands as player, i}
     <div class={`p${i + 1}`}>
       Player {i + 1}.
       {#if i % 2 === 0}
         <span>Team 1</span>
+        <div>Black tricks: {blackTricks}</div>
       {:else}
         <span>Team 2</span>
+        <div>Red tricks: {redTricks}</div>
       {/if}
+      {#if dealerIndex === i}
+        <div>Dealer</div>
+      {/if}
+
       <div>
         {#each player as card}
-          <span
-            ><button
+          <span>
+            {#if playedCards.includes(card)}
+              <button style="display: none">{card}</button>
+            {/if}
+            <button
               class="card"
               value={i}
               on:click={handleCardClick}
-              class:red={card.slice(-1) === "♥" || card.slice(-1) === "♦"}
-              >{`${card}`}</button
+              class:red={card.suite === "♥" || card.suite === "♦"}
+              >{`${card.type + card.suite}`}</button
             ></span
           >
         {/each}
@@ -239,8 +308,8 @@
   <div><button on:click={handleNext}>Next Hand</button></div>
   <div>
     Left Bower:
-    {#if leftBower}
-      <span>J{leftBower}</span>
+    {#if leftBowerSuite}
+      <span>J{leftBowerSuite}</span>
     {/if}
   </div>
 {/if}
