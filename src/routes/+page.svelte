@@ -3,10 +3,11 @@
   const suites = ["♠", "♦", "♣", "♥"];
 
   let passCount: number = 0;
+  let hasEveryPlayerPassed: boolean = false;
+  let hasDealerPickedUp = false;
 
   let dealerIndex: number = 0;
-  let playerTurn: number = 1
-  let cardsPlayed: number = 0
+  let cardsPlayed: number = 0;
 
   let redTricks: number = 0;
   let blackTricks: number = 0;
@@ -18,10 +19,17 @@
   $: leftBowerSuite = trump ? suites[(trumpIndex + 2) % suites.length] : "";
 
   $: leftBower = leftBowerSuite ? "J" + leftBowerSuite : "";
-  let suiteToFolllow: string = "";
+  let suiteToFollow: string = "";
 
-  $: if (passCount > 4) {
+  $: playerTurn = dealerIndex + 1;
+
+  $: if (passCount > 3) {
     passCount = 0;
+    hasEveryPlayerPassed = true;
+  }
+
+  $: if (playerTurn > 3) {
+    playerTurn = 0;
   }
 
   $: if (redTricks + blackTricks === 5) {
@@ -112,7 +120,6 @@
   }
 
   const shuffleDeck = (deck: Card[]) => {
-    console.log(playersHands);
     if (deck.length < 5) {
       return;
     }
@@ -132,6 +139,7 @@
 
   const reset = () => {
     trump = "";
+    playerTurn = dealerIndex + 1;
     fullDeck = createDeck(suites, cardVals);
     playersHands = [[], [], [], []];
     shuffledDeck = [];
@@ -141,6 +149,8 @@
       { type: "", suite: "", value: 0 },
       { type: "", suite: "", value: 0 },
     ];
+    hasEveryPlayerPassed = false;
+    hasDealerPickedUp = false;
   };
 
   const handleShuffle = () => {
@@ -150,12 +160,23 @@
   };
 
   const handlePass = () => {
-    passCount++;
+    if (trump === "" && hasEveryPlayerPassed && passCount === 3) {
+      return;
+    } else {
+      passCount++;
+      playerTurn++;
+    }
   };
 
-  const handlePickUp = () => {
-    const trumpSuite = fullDeck[0].suite;
-    trump = trumpSuite;
+  const handlePickUp = (event: MouseEvent) => {
+    if (!hasEveryPlayerPassed) {
+      const trumpSuite = fullDeck[0].suite;
+      trump = trumpSuite;
+      playerTurn = dealerIndex;
+    } else {
+      playerTurn = dealerIndex + 1;
+      trump = event.target?.textContent;
+    }
   };
 
   const handleCardClick = (event: MouseEvent) => {
@@ -165,30 +186,37 @@
 
     const index = event.target!.value;
 
-    if (index !== playerTurn) {
-      return
+    if (parseInt(index) !== playerTurn) {
+      return;
     }
 
-    if (playedCards[index].type === "") {
-      const matchingCard = shuffledDeck.find(
-        (card) => card.type + card.suite === event.target!.textContent
-      );
+    const matchingCard = shuffledDeck.find(
+      (card) => card.type + card.suite === event.target!.textContent
+    );
 
+    const hasLeadingSuite = playersHands[index].some(
+      (card) =>
+        card.suite === suiteToFollow ||
+        (suiteToFollow === trump && card.type + card.suite === leftBower)
+    );
+
+    if (playedCards[index].type === "") {
+      if (
+        hasLeadingSuite &&
+        (matchingCard?.suite !== suiteToFollow ||
+          (suiteToFollow === trump &&
+            matchingCard!.type + matchingCard!.suite !== leftBower))
+      ) {
+        return;
+      }
       const playedCardIndex = playersHands[index].indexOf(matchingCard!);
       playersHands[index].splice(playedCardIndex, 1);
 
-      if (suiteToFolllow !== "") {
-        const hasLeadingSuite = playersHands[index].some(
-          (card) => card.suite === suiteToFolllow
-        );
-        if (matchingCard?.suite !== suiteToFolllow && hasLeadingSuite) {
-          return;
-        }
-
+      if (suiteToFollow !== "") {
         if (
           matchingCard?.suite !== trump &&
           matchingCard?.type! + matchingCard?.suite! !== leftBower &&
-          matchingCard?.suite !== suiteToFolllow
+          matchingCard?.suite !== suiteToFollow
         ) {
           matchingCard!.value = 0;
         }
@@ -196,33 +224,66 @@
 
       if (
         matchingCard?.suite === trump ||
-        (matchingCard?.suite === leftBowerSuite && matchingCard.type === "J")
+        matchingCard?.suite! + matchingCard?.type! === leftBower
       ) {
-        matchingCard.value = matchingCard.value * 2;
+        matchingCard!.value = matchingCard!.value * 2;
       }
 
       playedCards.splice(index, 1, matchingCard!);
       playedCards = [...playedCards];
+      playersHands = playersHands;
+      console.log(playersHands, playedCards);
     }
 
-    if (suiteToFolllow === "") {
+    if (suiteToFollow === "") {
       if (
         playedCards[index].suite === leftBowerSuite &&
         playedCards[index].type === "J"
       ) {
-        suiteToFolllow = trump;
+        suiteToFollow = trump;
       } else {
-        suiteToFolllow = playedCards[index].suite;
+        suiteToFollow = playedCards[index].suite;
       }
     }
 
-    playerTurn++
+    if (playerTurn > 3) {
+      playerTurn = 0;
+    } else {
+      playerTurn++;
+    }
+  };
+
+  const handleDiscard = (event: MouseEvent) => {
+    if (hasDealerPickedUp) {
+      return;
+    }
+
+    const index = event.target!.value;
+
+    if (parseInt(index) !== dealerIndex) {
+      return;
+    } else {
+      const discardCard = shuffledDeck.find(
+        (card) => card.type + card.suite === event.target!.textContent
+      );
+
+      const pickUpCard = fullDeck[0];
+      const discardCardIndex = playersHands[index].indexOf(discardCard!);
+
+      playersHands[index].splice(discardCardIndex, 1, pickUpCard);
+      fullDeck.splice(0, 1, discardCard!);
+
+      fullDeck = fullDeck;
+      playersHands = playersHands;
+      hasDealerPickedUp = true;
+      playerTurn = dealerIndex + 1;
+    }
   };
 
   const handleNext = () => {
     console.log("nextHand");
-    getHighestCard(playedCards);
-    suiteToFolllow = "";
+    getHandWinner(playedCards);
+    suiteToFollow = "";
     playedCards = [
       { type: "", suite: "", value: 0 },
       { type: "", suite: "", value: 0 },
@@ -231,7 +292,7 @@
     ];
   };
 
-  const getHighestCard = (cards: Card[]) => {
+  const getHandWinner = (cards: Card[]) => {
     const highestCard = cards.find(
       (card) => card.value === Math.max(...cards.map((c) => c.value))
     );
@@ -241,6 +302,7 @@
     } else {
       blackTricks++;
     }
+    playerTurn = winningIndex;
   };
 </script>
 
@@ -258,8 +320,13 @@
         <span>Team 2</span>
         <div>Red tricks: {redTricks}</div>
       {/if}
+
       {#if dealerIndex === i}
         <div>Dealer</div>
+      {/if}
+
+      {#if playerTurn === i}
+        <div>Turn</div>
       {/if}
 
       <div>
@@ -268,14 +335,24 @@
             {#if playedCards.includes(card)}
               <button style="display: none">{card}</button>
             {/if}
-            <button
-              class="card"
-              value={i}
-              on:click={handleCardClick}
-              class:red={card.suite === "♥" || card.suite === "♦"}
-              >{`${card.type + card.suite}`}</button
-            ></span
-          >
+            {#if trump !== "" && !hasEveryPlayerPassed && !hasDealerPickedUp}
+              <button
+                class="card"
+                value={i}
+                on:click={handleDiscard}
+                class:red={card.suite === "♥" || card.suite === "♦"}
+                >{`${card.type + card.suite}`}</button
+              >
+            {:else}
+              <button
+                class="card"
+                value={i}
+                on:click={handleCardClick}
+                class:red={card.suite === "♥" || card.suite === "♦"}
+                >{`${card.type + card.suite}`}</button
+              >
+            {/if}
+          </span>
         {/each}
       </div>
     </div>
@@ -301,10 +378,29 @@
   <div>Kitty</div>
 {:else}
   <div>Trump: {trump}</div>
-  <div>Kitty {fullDeck[0].type + fullDeck[0].suite}</div>
+  {#if hasEveryPlayerPassed || hasDealerPickedUp}
+    <div>Kitty: Back of Card</div>
+  {:else}
+    <div>Kitty {fullDeck[0].type + fullDeck[0].suite}</div>
+  {/if}
   <div>Pass count: {passCount}</div>
   <button on:click={handlePass}>Pass</button>
-  <button on:click={handlePickUp}>Pick It Up</button>
+
+  {#if !trump && hasEveryPlayerPassed}
+    {#each suites as suite}
+      {#if suite !== fullDeck[0].suite && !trump}
+        <span>
+          <button
+            class:red={suite === "♥" || suite === "♦"}
+            on:click={handlePickUp}>{suite}</button
+          >
+        </span>
+      {/if}
+    {/each}
+  {:else}
+    <button on:click={handlePickUp}>Pick It Up</button>
+  {/if}
+
   <div><button on:click={handleNext}>Next Hand</button></div>
   <div>
     Left Bower:
@@ -312,6 +408,7 @@
       <span>J{leftBowerSuite}</span>
     {/if}
   </div>
+  <duv>Turn: {playerTurn + 1}</duv>
 {/if}
 
 <style>
