@@ -6,11 +6,15 @@
   let hasEveryPlayerPassed: boolean = false;
   let hasDealerPickedUp = false;
 
+  let playerToCallTrump: number | null = null;
+
   let dealerIndex: number = 0;
-  let cardsPlayed: number = 0;
 
   let redTricks: number = 0;
   let blackTricks: number = 0;
+
+  let redScore: number = 0;
+  let blackScore: number = 0;
 
   let trump: string = "";
 
@@ -33,6 +37,23 @@
   }
 
   $: if (redTricks + blackTricks === 5) {
+    if (playerToCallTrump === 0 || playerToCallTrump === 2) {
+      if (redTricks > 3) {
+        redScore + 2;
+      } else if (blackTricks === 5) {
+        blackScore + 2;
+      } else if (blackTricks < 5 && blackTricks > 2) {
+        blackScore + 1;
+      }
+    } else if (playerToCallTrump === 1 || playerToCallTrump === 3)
+      if (blackTricks > 3) {
+        blackScore + 2;
+      } else if (redTricks === 5) {
+        redScore + 2;
+      } else if (redTricks < 5 && redTricks > 2) {
+        redScore + 1;
+      }
+
     if (dealerIndex < 4) {
       dealerIndex++;
     } else {
@@ -177,6 +198,7 @@
       playerTurn = dealerIndex + 1;
       trump = event.target?.textContent;
     }
+    playerToCallTrump = event.target?.value;
   };
 
   const handleCardClick = (event: MouseEvent) => {
@@ -200,20 +222,45 @@
         (suiteToFollow === trump && card.type + card.suite === leftBower)
     );
 
-    if (playedCards[index].type === "") {
-      if (
-        hasLeadingSuite &&
-        (matchingCard?.suite !== suiteToFollow ||
-          (suiteToFollow === trump &&
-            matchingCard!.type + matchingCard!.suite !== leftBower))
-      ) {
-        return;
-      }
-      const playedCardIndex = playersHands[index].indexOf(matchingCard!);
-      playersHands[index].splice(playedCardIndex, 1);
-
-      if (suiteToFollow !== "") {
+    if (hasLeadingSuite) {
+      if (suiteToFollow === trump) {
         if (
+          matchingCard?.suite! !== suiteToFollow ||
+          (matchingCard?.suite !== suiteToFollow &&
+            matchingCard?.type! + matchingCard?.suite !== leftBower)
+        ) {
+          return;
+        }
+      } else if (suiteToFollow !== trump && suiteToFollow !== "") {
+        if (matchingCard?.suite !== suiteToFollow) {
+          return;
+        }
+      }
+    }
+
+    if (playedCards[index].type === "") {
+      console.log("player", playedCards)
+      const playedCardIndex = playersHands[index].indexOf(matchingCard!);
+      playedCards.splice(index, 1, matchingCard!);
+
+      if (suiteToFollow === "") {
+        if (
+          playedCards[index].suite === leftBowerSuite &&
+          playedCards[index].type === "J"
+        ) {
+          console.log("we")
+          suiteToFollow = trump;
+        } else {
+          console.log("us")
+          suiteToFollow = playedCards[index].suite;
+        }
+      } else {
+        if (
+          matchingCard?.suite === trump ||
+          matchingCard?.suite! + matchingCard?.type! === leftBower
+        ) {
+          matchingCard!.value = matchingCard!.value * 2;
+        } else if (
           matchingCard?.suite !== trump &&
           matchingCard?.type! + matchingCard?.suite! !== leftBower &&
           matchingCard?.suite !== suiteToFollow
@@ -221,29 +268,9 @@
           matchingCard!.value = 0;
         }
       }
-
-      if (
-        matchingCard?.suite === trump ||
-        matchingCard?.suite! + matchingCard?.type! === leftBower
-      ) {
-        matchingCard!.value = matchingCard!.value * 2;
-      }
-
-      playedCards.splice(index, 1, matchingCard!);
+      playersHands[index].splice(playedCardIndex, 1);
       playedCards = [...playedCards];
       playersHands = playersHands;
-      console.log(playersHands, playedCards);
-    }
-
-    if (suiteToFollow === "") {
-      if (
-        playedCards[index].suite === leftBowerSuite &&
-        playedCards[index].type === "J"
-      ) {
-        suiteToFollow = trump;
-      } else {
-        suiteToFollow = playedCards[index].suite;
-      }
     }
 
     if (playerTurn > 3) {
@@ -408,8 +435,11 @@
       <span>J{leftBowerSuite}</span>
     {/if}
   </div>
-  <duv>Turn: {playerTurn + 1}</duv>
+  <div>Turn: {playerTurn + 1}</div>
 {/if}
+
+<div>Black score: {blackScore}</div>
+<div>Red score: {redScore}</div>
 
 <style>
   button {
