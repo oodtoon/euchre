@@ -74,6 +74,7 @@
   {/each}
 
   <PlayedCards {playedCards} />
+
 </div>
 
 <style>
@@ -108,11 +109,4 @@
     align-self: center;
   }
 
-  .played-card-container {
-    grid-area: played;
-  }
-
-  .red {
-    color: rgb(181, 9, 9);
-  }
 </style>

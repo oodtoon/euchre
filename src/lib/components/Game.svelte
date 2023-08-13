@@ -1,6 +1,7 @@
 <script lang="ts">
   import Hand from "./Hand.svelte";
   import Info from "./Info.svelte";
+  import PlayedCards from "./PlayedCards.svelte";
 
   const cardVals = ["9", "10", "J", "Q", "K", "A"];
   const suites = ["♠", "♦", "♣", "♥"];
@@ -215,14 +216,14 @@
       return;
     }
 
-    const index = event.target!.value;
+    const index = parseInt(event.target.value);
 
-    if (parseInt(index) !== playerTurn) {
+    if (index !== playerTurn) {
       return;
     }
 
     const matchingCard = shuffledDeck.find(
-      (card) => card.type + card.suite === event.target!.textContent
+      (card) => card.type + card.suite === event.target.textContent
     );
 
     const hasLeadingSuite = playersHands[index].some(
@@ -231,12 +232,13 @@
         (suiteToFollow === trump && card.type + card.suite === leftBower)
     );
 
+    console.log(hasLeadingSuite)
+
     if (hasLeadingSuite) {
       if (suiteToFollow === trump) {
         if (
           matchingCard?.suite! !== suiteToFollow ||
-          (matchingCard?.suite !== suiteToFollow &&
-            matchingCard?.type! + matchingCard?.suite !== leftBower)
+          (matchingCard?.type! + matchingCard?.suite !== leftBower)
         ) {
           return;
         }
@@ -341,7 +343,7 @@
 <button on:click={handleShuffle}>Shuffle and Deal</button>
 <button on:click={reset}>Reset</button>
 
-<Hand
+  <Hand
   {playersHands}
   {blackTricks}
   {redTricks}
@@ -370,3 +372,4 @@
   {handlePass}
   {handlePickUp}
 />
+
