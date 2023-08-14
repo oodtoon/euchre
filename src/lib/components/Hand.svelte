@@ -1,12 +1,7 @@
 <script lang="ts">
-  import Card from "./Card.svelte";
+  import PlayingCard from "./PlayingCard.svelte";
   import PlayedCards from "./PlayedCards.svelte";
-
-  interface Card {
-    type: string;
-    suite: string;
-    value: number;
-  }
+  import type { Card } from "../types"
 
   export let playersHands: Card[][];
   export let blackTricks: number;
@@ -53,7 +48,7 @@
         {#each player as card}
           <span>
             {#if playedCards.includes(card)}
-              <Card
+              <PlayingCard
                 {i}
                 {card}
                 handleCard={() => {
@@ -63,9 +58,9 @@
               />
             {/if}
             {#if trump !== "" && !hasEveryPlayerPassed && !hasDealerPickedUp}
-              <Card {i} {card} handleCard={handleDiscard} isPlayed={false} />
+              <PlayingCard {i} {card} handleCard={handleDiscard} isPlayed={false} />
             {:else}
-              <Card {i} {card} handleCard={handleCardClick} isPlayed={false} />
+              <PlayingCard {i} {card} handleCard={handleCardClick} isPlayed={false} />
             {/if}
           </span>
         {/each}

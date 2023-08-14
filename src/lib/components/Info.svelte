@@ -1,10 +1,5 @@
 <script lang="ts">
-
-  interface Card {
-    type: string;
-    suite: string;
-    value: number;
-  }
+  import type { Card } from "../types";
 
   export let fullDeck: Card[];
   export let trump: string | null;
@@ -14,14 +9,12 @@
   export let hasEveryPlayerPassed: boolean;
   export let hasDealerPickedUp: boolean;
   export let leftBowerSuite: string;
-  export let playerTurn: number
+  export let playerTurn: number;
   export let suites: string[];
- 
 
-  export let handlePass: () => void
-  export let handleNext: () => void
-  export let handlePickUp: () => void
-
+  export let handlePass: () => void;
+  export let handleNext: () => void;
+  export let handlePickUp: () => void;
 </script>
 
 {#if fullDeck.length > 20}

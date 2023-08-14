@@ -2,6 +2,7 @@
   import Hand from "./Hand.svelte";
   import Info from "./Info.svelte";
   import PlayedCards from "./PlayedCards.svelte";
+  import type { Card } from "../types"
 
   const cardVals = ["9", "10", "J", "Q", "K", "A"];
   const suites = ["♠", "♦", "♣", "♥"];
@@ -41,7 +42,6 @@
   $: if (redTricks + blackTricks === 5) {
     console.log(redTricks, blackTricks);
     if (playerToCallTrump === 0 || playerToCallTrump === 2) {
-      console.log("team 1");
       if (redTricks > 3) {
         redScore += 2;
       } else if (blackTricks === 5) {
@@ -50,7 +50,6 @@
         blackScore += 1;
       }
     } else if (playerToCallTrump === 1 || playerToCallTrump === 3) {
-      console.log("team 2");
       if (blackTricks > 3) {
         blackScore += 2;
       } else if (redTricks === 5) {
@@ -65,12 +64,10 @@
     } else {
       dealerIndex = 0;
     }
-  }
 
-  interface Card {
-    type: string;
-    suite: string;
-    value: number;
+    setTimeout(() => {
+      handleShuffle();
+    }, 2500);
   }
 
   let cardsValues: {
@@ -232,18 +229,28 @@
         (suiteToFollow === trump && card.type + card.suite === leftBower)
     );
 
-    console.log(hasLeadingSuite)
+    console.log(hasLeadingSuite);
 
     if (hasLeadingSuite) {
       if (suiteToFollow === trump) {
         if (
-          matchingCard?.suite! !== suiteToFollow ||
-          (matchingCard?.type! + matchingCard?.suite !== leftBower)
+          matchingCard?.suite! !== suiteToFollow &&
+          matchingCard.suite !== leftBowerSuite
+        ) {
+          return;
+        } else if (
+          matchingCard.suite === leftBowerSuite &&
+          matchingCard.type !== "J"
         ) {
           return;
         }
       } else if (suiteToFollow !== trump && suiteToFollow !== "") {
         if (matchingCard?.suite !== suiteToFollow) {
+          return;
+        } else if (
+          suiteToFollow === leftBowerSuite &&
+          matchingCard.type + matchingCard.suite === leftBower
+        ) {
           return;
         }
       }
@@ -343,7 +350,7 @@
 <button on:click={handleShuffle}>Shuffle and Deal</button>
 <button on:click={reset}>Reset</button>
 
-  <Hand
+<Hand
   {playersHands}
   {blackTricks}
   {redTricks}
@@ -372,4 +379,3 @@
   {handlePass}
   {handlePickUp}
 />
-

@@ -1,9 +1,5 @@
 <script lang="ts">
-  interface Card {
-    type: string;
-    suite: string;
-    value: number;
-  }
+  import type { Card } from "../types"
 
   export let playedCards: Card[];
 </script>
