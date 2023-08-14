@@ -2,7 +2,7 @@
   import Hand from "./Hand.svelte";
   import Info from "./Info.svelte";
   import PlayedCards from "./PlayedCards.svelte";
-  import type { Card } from "../types"
+  import type { Card } from "../types";
 
   const cardVals = ["9", "10", "J", "Q", "K", "A"];
   const suites = ["♠", "♦", "♣", "♥"];
@@ -70,6 +70,13 @@
     }, 2500);
   }
 
+  $: if (leftBower !== "") {
+    const currentLeftBower = shuffledDeck.find(
+      (card) => card.type + card.suite === leftBower
+    );
+    currentLeftBower.dynamicSuite = trump;
+  }
+
   let cardsValues: {
     9: number;
     10: number;
@@ -105,7 +112,12 @@
     return suites.flatMap((suite) => {
       const suiteVal: Card[] = [];
       vals.forEach((val) => {
-        let cardObj = { type: val, suite, value: getCardVal(val, suite) };
+        let cardObj = {
+          type: val,
+          suite,
+          value: getCardVal(val, suite),
+          dynamicSuite: suite,
+        };
 
         suiteVal.push(cardObj);
       });
@@ -118,10 +130,10 @@
   let playersHands: [Card[], Card[], Card[], Card[]] = [[], [], [], []];
   let shuffledDeck: Card[];
   let playedCards: Card[] = [
-    { type: "", suite: "", value: 0 },
-    { type: "", suite: "", value: 0 },
-    { type: "", suite: "", value: 0 },
-    { type: "", suite: "", value: 0 },
+    { type: "", suite: "", value: 0, dynamicSuite: "" },
+    { type: "", suite: "", value: 0, dynamicSuite: "" },
+    { type: "", suite: "", value: 0, dynamicSuite: "" },
+    { type: "", suite: "", value: 0, dynamicSuite: "" },
   ];
 
   $: if (shuffledDeck) {
@@ -169,10 +181,10 @@
     playersHands = [[], [], [], []];
     shuffledDeck = [];
     playedCards = [
-      { type: "", suite: "", value: 0 },
-      { type: "", suite: "", value: 0 },
-      { type: "", suite: "", value: 0 },
-      { type: "", suite: "", value: 0 },
+      { type: "", suite: "", value: 0, dynamicSuite: "" },
+      { type: "", suite: "", value: 0, dynamicSuite: "" },
+      { type: "", suite: "", value: 0, dynamicSuite: "" },
+      { type: "", suite: "", value: 0, dynamicSuite: "" },
     ];
     hasEveryPlayerPassed = false;
     hasDealerPickedUp = false;
@@ -205,7 +217,6 @@
       playerTurn = dealerIndex + 1;
       trump = event.target?.textContent;
     }
-    console.log(playerToCallTrump);
   };
 
   const handleCardClick = (event: MouseEvent) => {
@@ -224,36 +235,11 @@
     );
 
     const hasLeadingSuite = playersHands[index].some(
-      (card) =>
-        card.suite === suiteToFollow ||
-        (suiteToFollow === trump && card.type + card.suite === leftBower)
+      (card) => card.dynamicSuite === suiteToFollow
     );
 
-    console.log(hasLeadingSuite);
-
-    if (hasLeadingSuite) {
-      if (suiteToFollow === trump) {
-        if (
-          matchingCard?.suite! !== suiteToFollow &&
-          matchingCard.suite !== leftBowerSuite
-        ) {
-          return;
-        } else if (
-          matchingCard.suite === leftBowerSuite &&
-          matchingCard.type !== "J"
-        ) {
-          return;
-        }
-      } else if (suiteToFollow !== trump && suiteToFollow !== "") {
-        if (matchingCard?.suite !== suiteToFollow) {
-          return;
-        } else if (
-          suiteToFollow === leftBowerSuite &&
-          matchingCard.type + matchingCard.suite === leftBower
-        ) {
-          return;
-        }
-      }
+    if (hasLeadingSuite && matchingCard!.dynamicSuite !== suiteToFollow) {
+      return;
     }
 
     if (playedCards[index].type === "") {
@@ -261,23 +247,12 @@
       playedCards.splice(index, 1, matchingCard!);
 
       if (suiteToFollow === "") {
-        if (
-          playedCards[index].suite === leftBowerSuite &&
-          playedCards[index].type === "J"
-        ) {
-          suiteToFollow = trump;
-        } else {
-          suiteToFollow = playedCards[index].suite;
-        }
+        suiteToFollow = playedCards[index].dynamicSuite;
       } else {
-        if (
-          matchingCard?.suite === trump ||
-          matchingCard?.suite! + matchingCard?.type! === leftBower
-        ) {
+        if (matchingCard?.dynamicSuite === trump) {
           matchingCard!.value = matchingCard!.value * 2;
         } else if (
-          matchingCard?.suite !== trump &&
-          matchingCard?.type! + matchingCard?.suite! !== leftBower &&
+          matchingCard?.dynamicSuite !== trump &&
           matchingCard?.suite !== suiteToFollow
         ) {
           matchingCard!.value = 0;
